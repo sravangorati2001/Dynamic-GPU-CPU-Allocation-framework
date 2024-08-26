@@ -4,7 +4,8 @@ import Toolbar from '@mui/material/Toolbar';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
 import MenuIcon from '@mui/icons-material/Menu';
-import { Box } from '@mui/material';
+import { Box, Button } from '@mui/material';
+import { Link } from 'react-router-dom';
 
 function Navbar() {
   return (
@@ -16,13 +17,17 @@ function Navbar() {
         <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
           Dynamic GPU Allocator
         </Typography>
-        <Box>
-          <img src="https://via.placeholder.com/40" alt="Logo" />
-        </Box>
+        
+        {/* Navigation Links */}
+        <Button color="inherit" component={Link} to="/">
+          Create Task
+        </Button>
+        <Button color="inherit" component={Link} to="/task-list">
+          Task List
+        </Button>
       </Toolbar>
     </AppBar>
   );
 }
 
 export default Navbar;
-

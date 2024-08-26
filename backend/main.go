@@ -6,7 +6,7 @@ import (
     "log"
     "net/http"
     "strings"
-
+    "github.com/gin-contrib/cors"
     "github.com/gin-gonic/gin"
     "k8s.io/client-go/kubernetes"
     "k8s.io/client-go/tools/clientcmd"
@@ -25,7 +25,7 @@ type TaskRequest struct {
 
 func main() {
     router := gin.Default()
-
+    router.Use(cors.Default())
     // Build the Kubernetes config from the Minikube kubeconfig file
     config, err := clientcmd.BuildConfigFromFlags("", "/home/sravan/.kube/config")
     if err != nil {
@@ -129,6 +129,49 @@ func main() {
             "podName":    createdPod.Name,
             "serviceURL": serviceURL,
         })
+    })
+
+
+    router.GET("/list-tasks", func(c *gin.Context) {
+        pods, err := clientset.CoreV1().Pods("default").List(context.TODO(), metav1.ListOptions{})
+        if err != nil {
+            c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to list pods", "details": err.Error()})
+            return
+        }
+
+        tasks := []map[string]interface{}{}
+
+        for _, pod := range pods.Items {
+            var gpus string
+            var cpus string
+
+            // Extract the requested resources
+            if len(pod.Spec.Containers) > 0 {
+                cpus = pod.Spec.Containers[0].Resources.Requests.Cpu().String()
+                if gpu, ok := pod.Spec.Containers[0].Resources.Requests["nvidia.com/gpu"]; ok {
+                    gpus = gpu.String()
+                }
+            }
+
+            // Find associated service to get the port
+            serviceName := pod.Name + "-service"
+            service, err := clientset.CoreV1().Services("default").Get(context.TODO(), serviceName, metav1.GetOptions{})
+            var nodePort int32
+            if err == nil && len(service.Spec.Ports) > 0 {
+                nodePort = service.Spec.Ports[0].NodePort
+            }
+
+            task := map[string]interface{}{
+                "name":       pod.Name,
+                "imageName":  pod.Spec.Containers[0].Image,
+                "cpus":       cpus,
+                "gpus":       gpus,
+                "nodePort":   nodePort,
+            }
+            tasks = append(tasks, task)
+        }
+
+        c.JSON(http.StatusOK, gin.H{"tasks": tasks})
     })
 
     router.Run(":8080")
