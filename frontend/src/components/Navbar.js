@@ -17,13 +17,17 @@ function Navbar() {
         <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
           Dynamic GPU Allocator
         </Typography>
-        
-        {/* Navigation Links */}
+        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          <img src="https://via.placeholder.com/40" alt="Logo" style={{ marginRight: 16 }} />
+        </Box>
         <Button color="inherit" component={Link} to="/">
           Create Task
         </Button>
         <Button color="inherit" component={Link} to="/task-list">
           Task List
+        </Button>
+        <Button color="inherit" component={Link} to="/manage-gpus">
+          Manage GPUs
         </Button>
       </Toolbar>
     </AppBar>

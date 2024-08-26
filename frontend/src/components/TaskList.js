@@ -24,13 +24,34 @@ function TaskList() {
       <TableContainer component={Paper}>
         <Table>
           <TableHead>
-            <TableRow>
-              <TableCell>Task Name</TableCell>
-              <TableCell>Image Name</TableCell>
-              <TableCell>CPUs Using</TableCell>
-              <TableCell>GPUs Using</TableCell>
-              <TableCell>Node Port</TableCell>
+          <TableRow>
+            <TableCell>
+                <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
+                Task Name
+                </Typography>
+            </TableCell>
+            <TableCell>
+                <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
+                Image Name
+                </Typography>
+            </TableCell>
+            <TableCell>
+                <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
+                CPUs Using
+                </Typography>
+            </TableCell>
+            <TableCell>
+                <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
+                GPUs Using
+                </Typography>
+            </TableCell>
+            <TableCell>
+                <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
+                Node Port
+                </Typography>
+            </TableCell>
             </TableRow>
+
           </TableHead>
           <TableBody>
             {tasks.map((task) => (

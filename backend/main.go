@@ -132,6 +132,111 @@ func main() {
     })
 
 
+    // API to get the number of available GPUs
+    router.GET("/available-gpus", func(c *gin.Context) {
+        // Fetch the list of nodes
+        nodes, err := clientset.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
+        if err != nil {
+            c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to list nodes", "details": err.Error()})
+            return
+        }
+    
+        totalAllocatableGPUs := 0
+        totalUsedGPUs := 0
+    
+        // Calculate total allocatable GPUs across all nodes
+        for _, node := range nodes.Items {
+            if allocatableGPUs, ok := node.Status.Allocatable["nvidia.com/gpu"]; ok {
+                gpus, _ := allocatableGPUs.AsInt64()
+                totalAllocatableGPUs += int(gpus)
+            }
+        }
+    
+        // Fetch the list of pods to calculate used GPUs
+        pods, err := clientset.CoreV1().Pods("").List(context.TODO(), metav1.ListOptions{})
+        if err != nil {
+            c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to list pods", "details": err.Error()})
+            return
+        }
+    
+        // Calculate the GPUs currently in use by all pods
+        for _, pod := range pods.Items {
+            for _, container := range pod.Spec.Containers {
+                if gpu, ok := container.Resources.Requests["nvidia.com/gpu"]; ok {
+                    usedGPUs, _ := gpu.AsInt64()
+                    totalUsedGPUs += int(usedGPUs)
+                }
+            }
+        }
+    
+        // Calculate the number of free GPUs
+        freeGPUs := totalAllocatableGPUs - totalUsedGPUs
+    
+        // Return the total, used, and free GPUs
+        c.JSON(http.StatusOK, gin.H{
+            "totalAllocatableGPUs": totalAllocatableGPUs,
+            "totalUsedGPUs":        totalUsedGPUs,
+            "freeGPUs":             freeGPUs,
+        })
+    })
+    
+
+    type AddGPURequest struct {
+        TaskName string `json:"taskName" binding:"required"`
+        GPUs     string `json:"gpus" binding:"required"`
+    }
+    
+    // API to add GPUs to an existing task
+    router.POST("/add-gpus", func(c *gin.Context) {
+        var gpuReq AddGPURequest
+        if err := c.ShouldBindJSON(&gpuReq); err != nil {
+            c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+            return
+        }
+    
+        // Fetch the pod by task name
+        pod, err := clientset.CoreV1().Pods("default").Get(context.TODO(), gpuReq.TaskName, metav1.GetOptions{})
+        if err != nil {
+            c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get pod", "details": err.Error()})
+            return
+        }
+    
+        // Update the GPU resource limits for the pod's container
+        pod.Spec.Containers[0].Resources.Limits["nvidia.com/gpu"] = resource.MustParse(gpuReq.GPUs)
+        pod.Spec.Containers[0].Resources.Requests["nvidia.com/gpu"] = resource.MustParse(gpuReq.GPUs)
+    
+        // Delete the current pod and recreate it with updated GPUs (this can be avoided with advanced Kubernetes techniques)
+        err = clientset.CoreV1().Pods("default").Delete(context.TODO(), gpuReq.TaskName, metav1.DeleteOptions{})
+        if err != nil {
+            c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete pod", "details": err.Error()})
+            return
+        }
+    
+        // Recreate the pod with the new resource requests
+        createdPod, err := clientset.CoreV1().Pods("default").Create(context.TODO(), pod, metav1.CreateOptions{})
+        if err != nil {
+            c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create updated pod", "details": err.Error()})
+            return
+        }
+    
+        c.JSON(http.StatusOK, gin.H{"message": "GPUs successfully added to the task", "podName": createdPod.Name})
+    })
+    
+    router.GET("/tasks", func(c *gin.Context) {
+        pods, err := clientset.CoreV1().Pods("default").List(context.TODO(), metav1.ListOptions{})
+        if err != nil {
+            c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to list pods", "details": err.Error()})
+            return
+        }
+    
+        taskNames := []string{}
+        for _, pod := range pods.Items {
+            taskNames = append(taskNames, pod.Name)
+        }
+    
+        c.JSON(http.StatusOK, gin.H{"tasks": taskNames})
+    })
+    
     router.GET("/list-tasks", func(c *gin.Context) {
         pods, err := clientset.CoreV1().Pods("default").List(context.TODO(), metav1.ListOptions{})
         if err != nil {
