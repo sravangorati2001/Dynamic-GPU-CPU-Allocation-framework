@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 import { TextField, Button, Grid, Box, Typography, Autocomplete } from '@mui/material';
 
 const imageList = [
-  "jupyter/base-notebook",
+  "jupyter/base-notebook:latest",
   "jupyter/scipy-notebook",
-  "tensorflow/tensorflow:latest",
+  "tensorflow/tensorflow:latest-arm64",
   "pytorch/pytorch:latest",
   "scikit-learn/scikit-learn",
   "apache/spark",
@@ -32,9 +32,39 @@ function TaskForm() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    console.log(formData);
-    // API call to backend goes here
+  
+    // Prepare the payload to send to the backend
+    const payload = {
+      taskName: formData.taskName,
+      cpus: formData.cpus,
+      gpus: formData.gpus,
+      imageName: formData.selectedImage
+    };
+  
+    // Make the API request to the backend
+    fetch('http://localhost:8080/create-pod', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error('Failed to create task');
+        }
+        return response.json();
+      })
+      .then((data) => {
+        console.log('Success:', data);
+        alert(`Task created successfully! Access URL: ${data.serviceURL}`);
+      })
+      .catch((error) => {
+        console.error('Error:', error);
+        alert('Failed to create task');
+      });
   };
+  
 
   return (
     <Box sx={{ mt: 4 }}>
