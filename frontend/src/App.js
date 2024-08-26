@@ -1,13 +1,18 @@
 import React from 'react';
-import Hello from './components/Hello';
+import TaskForm from './components/TaskForm';
+import Navbar from './components/Navbar';
+import { Container } from '@mui/material';
 
-const App = () => {
-    return (
-        <div>
-            <Hello />
-        </div>
-    );
-};
+function App() {
+  return (
+    <div className="App">
+      <Navbar />
+      <Container>
+        <TaskForm />
+      </Container>
+    </div>
+  );
+}
 
 export default App;
 
