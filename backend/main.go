@@ -225,9 +225,16 @@ func main() {
     router.DELETE("/delete-task/:taskName", func(c *gin.Context) {
         taskName := c.Param("taskName")
     
-        // Delete the pod
-        err := clientset.CoreV1().Pods("default").Delete(context.TODO(), taskName, metav1.DeleteOptions{})
-        if err != nil {
+        // Delete the deployment (if it exists)
+        err := clientset.AppsV1().Deployments("default").Delete(context.TODO(), taskName, metav1.DeleteOptions{})
+        if err != nil && !strings.Contains(err.Error(), "not found") {
+            c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete deployment", "details": err.Error()})
+            return
+        }
+    
+        // Delete the pod (if there's no deployment managing it)
+        err = clientset.CoreV1().Pods("default").Delete(context.TODO(), taskName, metav1.DeleteOptions{})
+        if err != nil && !strings.Contains(err.Error(), "not found") {
             c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete pod", "details": err.Error()})
             return
         }
@@ -235,16 +242,9 @@ func main() {
         // Check if the service exists before attempting to delete it
         serviceName := taskName + "-service"
         _, err = clientset.CoreV1().Services("default").Get(context.TODO(), serviceName, metav1.GetOptions{})
-        if err != nil {
-            if strings.Contains(err.Error(), "not found") {
-                // Service doesn't exist, continue without returning an error
-                c.JSON(http.StatusOK, gin.H{"message": "Task deleted successfully, service was not found or already deleted"})
-                return
-            } else {
-                // Other errors
-                c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get service", "details": err.Error()})
-                return
-            }
+        if err != nil && strings.Contains(err.Error(), "not found") {
+            c.JSON(http.StatusOK, gin.H{"message": "Task deleted successfully, service was not found or already deleted"})
+            return
         }
     
         // Delete the associated service
@@ -255,7 +255,7 @@ func main() {
         }
     
         c.JSON(http.StatusOK, gin.H{"message": "Task and service deleted successfully"})
-    })
+    })    
     
     
     router.GET("/tasks", func(c *gin.Context) {

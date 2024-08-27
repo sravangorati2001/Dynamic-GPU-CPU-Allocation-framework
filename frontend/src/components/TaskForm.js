@@ -32,16 +32,14 @@ function TaskForm() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-  
-    // Prepare the payload to send to the backend
+
     const payload = {
       taskName: formData.taskName,
       cpus: formData.cpus,
       gpus: formData.gpus,
       imageName: formData.selectedImage
     };
-  
-    // Make the API request to the backend
+
     fetch('http://localhost:8080/create-pod', {
       method: 'POST',
       headers: {
@@ -56,23 +54,20 @@ function TaskForm() {
         return response.json();
       })
       .then((data) => {
-        console.log('Success:', data);
         alert(`Task created successfully! Access URL: ${data.serviceURL}`);
       })
       .catch((error) => {
-        console.error('Error:', error);
         alert('Failed to create task');
       });
   };
-  
 
   return (
-    <Box sx={{ mt: 4 }}>
+    <Box sx={{ mt: 4, maxWidth: 800, mx: 'auto' }}>
       <Typography variant="h4" gutterBottom textAlign="center">
         Create Task
       </Typography>
       <form onSubmit={handleSubmit}>
-        <Grid container spacing={3} justifyContent="center">
+        <Grid container spacing={2} justifyContent="center">
           <Grid item xs={12} sm={6}>
             <TextField
               fullWidth
@@ -108,7 +103,7 @@ function TaskForm() {
               required
             />
           </Grid>
-          <Grid item xs={12}>
+          <Grid item xs={12} sm={6}>
             <Autocomplete
               options={imageList}
               value={formData.selectedImage}
@@ -126,12 +121,12 @@ function TaskForm() {
           </Grid>
           {formData.selectedImage && (
             <Grid item xs={12}>
-              <Typography variant="body1">
+              <Typography variant="body1" textAlign="center">
                 Selected Image: {formData.selectedImage}
               </Typography>
             </Grid>
           )}
-          <Grid item xs={12} sm={6}>
+          <Grid item xs={12}>
             <Button
               variant="contained"
               color="primary"
@@ -148,4 +143,3 @@ function TaskForm() {
 }
 
 export default TaskForm;
-
