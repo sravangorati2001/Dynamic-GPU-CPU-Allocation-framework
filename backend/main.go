@@ -222,6 +222,42 @@ func main() {
         c.JSON(http.StatusOK, gin.H{"message": "GPUs successfully added to the task", "podName": createdPod.Name})
     })
     
+    router.DELETE("/delete-task/:taskName", func(c *gin.Context) {
+        taskName := c.Param("taskName")
+    
+        // Delete the pod
+        err := clientset.CoreV1().Pods("default").Delete(context.TODO(), taskName, metav1.DeleteOptions{})
+        if err != nil {
+            c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete pod", "details": err.Error()})
+            return
+        }
+    
+        // Check if the service exists before attempting to delete it
+        serviceName := taskName + "-service"
+        _, err = clientset.CoreV1().Services("default").Get(context.TODO(), serviceName, metav1.GetOptions{})
+        if err != nil {
+            if strings.Contains(err.Error(), "not found") {
+                // Service doesn't exist, continue without returning an error
+                c.JSON(http.StatusOK, gin.H{"message": "Task deleted successfully, service was not found or already deleted"})
+                return
+            } else {
+                // Other errors
+                c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get service", "details": err.Error()})
+                return
+            }
+        }
+    
+        // Delete the associated service
+        err = clientset.CoreV1().Services("default").Delete(context.TODO(), serviceName, metav1.DeleteOptions{})
+        if err != nil {
+            c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete service", "details": err.Error()})
+            return
+        }
+    
+        c.JSON(http.StatusOK, gin.H{"message": "Task and service deleted successfully"})
+    })
+    
+    
     router.GET("/tasks", func(c *gin.Context) {
         pods, err := clientset.CoreV1().Pods("default").List(context.TODO(), metav1.ListOptions{})
         if err != nil {
