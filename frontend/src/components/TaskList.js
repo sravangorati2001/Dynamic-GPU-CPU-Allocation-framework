@@ -7,7 +7,7 @@ function TaskList() {
 
   useEffect(() => {
     // Fetch the task list from the backend
-    axios.get('http://localhost:8080/list-tasks')
+    axios.get('http://149.36.1.105:8080/list-tasks')
       .then(response => {
         setTasks(response.data.tasks);
       })
@@ -19,7 +19,7 @@ function TaskList() {
   const handleDeleteTask = (taskName) => {
     if (window.confirm(`Are you sure you want to delete the task: ${taskName}?`)) {
       // Send request to delete the task
-      axios.delete(`http://localhost:8080/delete-task/${taskName}`)
+      axios.delete(`http://149.36.1.105:8080/delete-task/${taskName}`)
         .then(response => {
           alert('Task deleted successfully!');
           // Remove the task from the UI
