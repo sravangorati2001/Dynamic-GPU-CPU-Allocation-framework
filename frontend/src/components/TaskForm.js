@@ -40,7 +40,7 @@ function TaskForm() {
       imageName: formData.selectedImage
     };
 
-    fetch('http://localhost:8080/create-pod', {
+    fetch('http://149.36.1.105:8080/create-pod', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
