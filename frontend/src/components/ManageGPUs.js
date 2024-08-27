@@ -13,7 +13,7 @@ function ManageGPUs() {
 
   useEffect(() => {
     // Fetch the number of available and free GPUs from backend
-    axios.get('http://localhost:8080/available-gpus')
+    axios.get('http://149.36.1.105:8080/available-gpus')
       .then(response => {
         setAvailableGPUs(response.data.totalAllocatableGPUs);
         setFreeGPUs(response.data.freeGPUs);
@@ -23,7 +23,7 @@ function ManageGPUs() {
       });
 
     // Fetch the list of tasks (Kubernetes pods)
-    axios.get('http://localhost:8080/tasks')
+    axios.get('http://149.36.1.105:8080/tasks')
       .then(response => {
         setTaskList(response.data.tasks);  // Set the task names
       })
@@ -47,7 +47,7 @@ function ManageGPUs() {
       taskName: selectedTask,
       gpus: gpusToAdd
     };
-    axios.post('http://localhost:8080/add-gpus', data)
+    axios.post('http://149.36.1.105:8080/add-gpus', data)
       .then(response => {
         alert('GPUs successfully added to the task!');
       })
