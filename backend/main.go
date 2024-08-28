@@ -27,7 +27,7 @@ func main() {
     router := gin.Default()
     router.Use(cors.Default())
     // Build the Kubernetes config from the Minikube kubeconfig file
-    config, err := clientcmd.BuildConfigFromFlags("", "/home/sravan/.kube/config")
+    config, err := clientcmd.BuildConfigFromFlags("", "/home/ubuntu/.kube/config")
     if err != nil {
         log.Fatalf("Failed to load Kubernetes config: %v", err)
     }
@@ -77,11 +77,28 @@ func main() {
                                 "nvidia.com/gpu": resource.MustParse(taskReq.GPUs), // Limit GPUs
                             },
                         },
+                        VolumeMounts: []v1.VolumeMount{
+                            {
+                                Name:      "notebook-storage",
+                                MountPath: "/home/jovyan/work", // Mount the notebook directory
+                            },
+                        },
+                    },
+                },
+                Volumes: []v1.Volume{
+                    {
+                        Name: "notebook-storage", // Ensure this matches the volumeMounts name
+                        VolumeSource: v1.VolumeSource{
+                            PersistentVolumeClaim: &v1.PersistentVolumeClaimVolumeSource{
+                                ClaimName: "jupyter-pvc", // Ensure this is the correct PVC name
+                            },
+                        },
                     },
                 },
                 RestartPolicy: v1.RestartPolicyAlways,
             },
         }
+        
 
         // Create the pod in the default namespace
         createdPod, err := clientset.CoreV1().Pods("default").Create(context.TODO(), pod, metav1.CreateOptions{})
@@ -317,3 +334,4 @@ func main() {
 
     router.Run(":8080")
 }
+
