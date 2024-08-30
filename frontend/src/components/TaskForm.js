@@ -11,6 +11,9 @@ const imageList = [
   "huggingface/transformers-pytorch-cpu",
   "nvidia/cuda",
   "openai/gpt-3",
+  "tensorflow/tensorflow:2.12.0-gpu",
+  "tensorflow/tensorflow:2.12.0-gpu-jupyter",
+  "nvcr.io/nvidia/tensorflow:22.12-tf2-py3"
 ];
 
 function TaskForm() {

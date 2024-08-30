@@ -1,11 +1,17 @@
 package main
 
 import (
-    "context"
-    "fmt"
+    "io"
     "log"
+    "fmt"
+    "context"
     "net/http"
+    "os/exec"
+    "regexp"
     "strings"
+    "time"
+    "strconv"
+
     "github.com/gin-contrib/cors"
     "github.com/gin-gonic/gin"
     "k8s.io/client-go/kubernetes"
@@ -62,6 +68,9 @@ func main() {
                     {
                         Name:  sanitizedTaskName, // Ensure the container name follows RFC 1123
                         Image: taskReq.ImageName,
+			Command: []string{
+                  	    "jupyter", "notebook", "--ip=0.0.0.0", "--no-browser", "--allow-root",
+                        },
                         Ports: []v1.ContainerPort{
                             {
                                 ContainerPort: 8888, // TensorFlow or Jupyter usually runs on port 8888
@@ -95,7 +104,7 @@ func main() {
                         },
                     },
                 },
-                RestartPolicy: v1.RestartPolicyAlways,
+                RestartPolicy: v1.RestartPolicyNever,
             },
         }
         
@@ -290,6 +299,82 @@ func main() {
         c.JSON(http.StatusOK, gin.H{"tasks": taskNames})
     })
     
+    router.POST("/access-jupyter", func(c *gin.Context) {
+        var request struct {
+            Port        string `json:"port" binding:"required"`
+            ServiceName string `json:"serviceName" binding:"required"`
+        }
+
+        // Bind JSON input
+        if err := c.ShouldBindJSON(&request); err != nil {
+            c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+            return
+        }
+
+        // Convert port from string to int
+        port, err := strconv.Atoi(request.Port)
+        if err != nil {
+            c.JSON(http.StatusBadRequest, gin.H{"error": "Port must be a valid integer"})
+            return
+        }
+
+        // Run kubectl port-forward command as a background process
+        cmd := exec.Command("kubectl", "port-forward", fmt.Sprintf("svc/%s", request.ServiceName), fmt.Sprintf("%d:80", port), "--address=0.0.0.0")
+        err = cmd.Start()
+        if err != nil {
+            c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to start port forwarding", "details": err.Error()})
+            return
+        }
+
+        // Give some time for port-forwarding to start
+        time.Sleep(2 * time.Second)
+
+        var token string
+        if strings.Contains(request.ServiceName, "jupyter") {
+            // Get the pod associated with the Jupyter Notebook service
+            pods, err := clientset.CoreV1().Pods("default").List(context.TODO(), metav1.ListOptions{
+                LabelSelector: "app=" + strings.TrimSuffix(request.ServiceName, "-service"),
+            })
+            if err != nil || len(pods.Items) == 0 {
+                c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to find Jupyter pod", "details": err.Error()})
+                return
+            }
+
+            // Get the pod logs to extract the Jupyter token
+            logStream, err := clientset.CoreV1().Pods("default").GetLogs(pods.Items[0].Name, &v1.PodLogOptions{}).Stream(context.TODO())
+            if err != nil {
+                c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get pod logs", "details": err.Error()})
+                return
+            }
+            defer logStream.Close()
+
+            // Read the logs and search for the token
+            buf := new(strings.Builder)
+            _, err = io.Copy(buf, logStream)
+            if err != nil {
+                c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read pod logs", "details": err.Error()})
+                return
+            }
+
+            token = extractJupyterToken(buf.String())
+            if token == "" {
+                c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to extract Jupyter token"})
+                return
+            }
+        }
+
+        // Construct the public URL and return it along with the token if available
+        publicIP := "149.36.1.105" // Replace with your public IP or domain
+        serviceURL := fmt.Sprintf("http://%s:%d", publicIP, port)
+
+        response := gin.H{"url": serviceURL}
+        if token != "" {
+            response["token"] = token
+        }
+
+        c.JSON(http.StatusOK, response)
+    })
+
     router.GET("/list-tasks", func(c *gin.Context) {
         pods, err := clientset.CoreV1().Pods("default").List(context.TODO(), metav1.ListOptions{})
         if err != nil {
@@ -333,5 +418,14 @@ func main() {
     })
 
     router.Run(":8080")
+}
+
+func extractJupyterToken(logs string) string {
+    re := regexp.MustCompile(`token=([a-zA-Z0-9]+)`)
+    match := re.FindStringSubmatch(logs)
+    if len(match) > 1 {
+        return match[1]
+    }
+    return ""
 }
 
