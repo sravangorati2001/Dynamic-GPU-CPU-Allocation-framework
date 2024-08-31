@@ -4,19 +4,20 @@ import Autocomplete from '@mui/material/Autocomplete';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import axios from 'axios';
 
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080';
+
 function ManageResources() {
   const [availableGPUs, setAvailableGPUs] = useState(0);
   const [freeGPUs, setFreeGPUs] = useState(0);
   const [availableCPUs, setAvailableCPUs] = useState(0);
   const [freeCPUs, setFreeCPUs] = useState(0);
-  const [taskList, setTaskList] = useState([]);  // Task list for the dropdown
+  const [taskList, setTaskList] = useState([]);
   const [selectedTask, setSelectedTask] = useState('');
   const [gpusToAdd, setGpusToAdd] = useState('');
   const [cpusToAdd, setCpusToAdd] = useState('');
 
   useEffect(() => {
-    // Fetch the number of available and free GPUs and CPUs from the backend
-    axios.get('http://149.36.1.88:8080/available-resources')
+    axios.get(`${API_BASE_URL}/available-resources`)
       .then(response => {
         setAvailableGPUs(response.data.totalAllocatableGPUs);
         setFreeGPUs(response.data.freeGPUs);
@@ -27,10 +28,9 @@ function ManageResources() {
         console.error('Error fetching available resources:', error);
       });
 
-    // Fetch the list of tasks (Kubernetes pods)
-    axios.get('http://149.36.1.88:8080/tasks')
+    axios.get(`${API_BASE_URL}/tasks`)
       .then(response => {
-        setTaskList(response.data.tasks);  // Set the task names
+        setTaskList(response.data.tasks);
       })
       .catch(error => {
         console.error('Error fetching task list:', error);
@@ -51,13 +51,12 @@ function ManageResources() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    // API call to add GPUs and CPUs to an existing task
     const data = {
       taskName: selectedTask,
       gpus: gpusToAdd,
       cpus: cpusToAdd,
     };
-    axios.post('http://149.36.1.88:8080/add-resources', data)
+    axios.post(`${API_BASE_URL}/add-resources`, data)
       .then(response => {
         alert('Resources successfully added to the task!');
       })
@@ -120,7 +119,7 @@ function ManageResources() {
         <Grid container spacing={3} justifyContent="center">
           <Grid item xs={12} sm={6}>
             <Autocomplete
-              options={taskList}  // Dynamically fetched task list
+              options={taskList}
               value={selectedTask}
               onChange={handleTaskChange}
               renderInput={(params) => (
@@ -169,4 +168,3 @@ function ManageResources() {
 }
 
 export default ManageResources;
-

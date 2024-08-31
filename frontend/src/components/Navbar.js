@@ -8,6 +8,9 @@ import { Box, Button } from '@mui/material';
 import { Link } from 'react-router-dom';
 
 function Navbar() {
+  const grafanaUrl = process.env.REACT_APP_GRAFANA_URL || '#';
+  const prometheusUrl = process.env.REACT_APP_PROMETHEUS_URL || '#';
+
   return (
     <AppBar position="static">
       <Toolbar>
@@ -17,9 +20,6 @@ function Navbar() {
         <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
           Dynamic GPU Allocator
         </Typography>
-        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          <img src="https://via.placeholder.com/40" alt="Logo" style={{ marginRight: 16 }} />
-        </Box>
         <Button color="inherit" component={Link} to="/">
           Create Task
         </Button>
@@ -28,6 +28,12 @@ function Navbar() {
         </Button>
         <Button color="inherit" component={Link} to="/manage-gpus">
           Manage GPUs
+        </Button>
+        <Button color="inherit" href={grafanaUrl} target="_blank" rel="noopener noreferrer">
+          Grafana
+        </Button>
+        <Button color="inherit" href={prometheusUrl} target="_blank" rel="noopener noreferrer">
+          Prometheus
         </Button>
       </Toolbar>
     </AppBar>

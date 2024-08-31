@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { TextField, Button, Grid, Box, Typography, Autocomplete } from '@mui/material';
 
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080';
+
 const imageList = [
   "jupyter/base-notebook:latest",
   "jupyter/scipy-notebook",
@@ -35,7 +37,6 @@ function TaskForm() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-
     const payload = {
       taskName: formData.taskName,
       cpus: formData.cpus,
@@ -43,7 +44,7 @@ function TaskForm() {
       imageName: formData.selectedImage
     };
 
-    fetch('http://149.36.1.88:8080/create-pod', {
+    fetch(`${API_BASE_URL}/create-pod`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

@@ -159,52 +159,69 @@ func main() {
 
 
     // API to get the number of available GPUs
-    router.GET("/available-gpus", func(c *gin.Context) {
-        // Fetch the list of nodes
-        nodes, err := clientset.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
-        if err != nil {
-            c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to list nodes", "details": err.Error()})
-            return
-        }
-    
-        totalAllocatableGPUs := 0
-        totalUsedGPUs := 0
-    
-        // Calculate total allocatable GPUs across all nodes
-        for _, node := range nodes.Items {
-            if allocatableGPUs, ok := node.Status.Allocatable["nvidia.com/gpu"]; ok {
-                gpus, _ := allocatableGPUs.AsInt64()
-                totalAllocatableGPUs += int(gpus)
-            }
-        }
-    
-        // Fetch the list of pods to calculate used GPUs
-        pods, err := clientset.CoreV1().Pods("").List(context.TODO(), metav1.ListOptions{})
-        if err != nil {
-            c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to list pods", "details": err.Error()})
-            return
-        }
-    
-        // Calculate the GPUs currently in use by all pods
-        for _, pod := range pods.Items {
-            for _, container := range pod.Spec.Containers {
-                if gpu, ok := container.Resources.Requests["nvidia.com/gpu"]; ok {
-                    usedGPUs, _ := gpu.AsInt64()
-                    totalUsedGPUs += int(usedGPUs)
-                }
-            }
-        }
-    
-        // Calculate the number of free GPUs
-        freeGPUs := totalAllocatableGPUs - totalUsedGPUs
-    
-        // Return the total, used, and free GPUs
-        c.JSON(http.StatusOK, gin.H{
-            "totalAllocatableGPUs": totalAllocatableGPUs,
-            "totalUsedGPUs":        totalUsedGPUs,
-            "freeGPUs":             freeGPUs,
-        })
-    })
+    router.GET("/available-resources", func(c *gin.Context) {
+		nodes, err := clientset.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to list nodes", "details": err.Error()})
+			return
+		}
+
+		totalAllocatableGPUs := 0
+		totalAllocatableCPUs := 0
+		totalUsedGPUs := 0
+		totalUsedCPUs := 0
+
+		for _, node := range nodes.Items {
+			// Get Allocatable GPUs
+			if allocatableGPUs, ok := node.Status.Allocatable["nvidia.com/gpu"]; ok {
+				gpus, _ := allocatableGPUs.AsInt64()
+				totalAllocatableGPUs += int(gpus)
+			}
+
+			// Get Allocatable CPUs
+			if allocatableCPUs, ok := node.Status.Allocatable[v1.ResourceCPU]; ok {
+				cpus, _ := allocatableCPUs.AsInt64()
+				totalAllocatableCPUs += int(cpus)
+			}
+		}
+
+		// Iterate over the pods to calculate used resources
+		pods, err := clientset.CoreV1().Pods("").List(context.TODO(), metav1.ListOptions{})
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to list pods", "details": err.Error()})
+			return
+		}
+
+		for _, pod := range pods.Items {
+			for _, container := range pod.Spec.Containers {
+				// Get Used GPUs
+				if usedGPUs, ok := container.Resources.Requests["nvidia.com/gpu"]; ok {
+					gpus, _ := usedGPUs.AsInt64()
+					totalUsedGPUs += int(gpus)
+				}
+
+				// Get Used CPUs
+				if usedCPUs, ok := container.Resources.Requests[v1.ResourceCPU]; ok {
+					cpus, _ := usedCPUs.AsInt64()
+					totalUsedCPUs += int(cpus)
+				}
+			}
+		}
+
+		// Calculate free GPUs and CPUs
+		freeGPUs := totalAllocatableGPUs - totalUsedGPUs
+		freeCPUs := totalAllocatableCPUs - totalUsedCPUs
+
+		// Send response back to frontend
+		c.JSON(http.StatusOK, gin.H{
+			"freeGPUs":            freeGPUs,
+			"totalAllocatableGPUs": totalAllocatableGPUs,
+			"totalUsedGPUs":       totalUsedGPUs,
+			"freeCPUs":            freeCPUs,
+			"totalAllocatableCPUs": totalAllocatableCPUs,
+			"totalUsedCPUs":       totalUsedCPUs,
+		})
+	})
     
 
     type AddGPURequest struct {

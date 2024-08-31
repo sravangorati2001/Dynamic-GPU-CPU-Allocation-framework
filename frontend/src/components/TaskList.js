@@ -2,14 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography, Button, Container, Box, TextField } from '@mui/material';
 import axios from 'axios';
 
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080';
+
 function TaskList() {
   const [tasks, setTasks] = useState([]);
   const [link, setLink] = useState({});
   const [customPort, setCustomPort] = useState({});
 
   useEffect(() => {
-    // Fetch the task list from the backend
-    axios.get('http://149.36.1.88:8080/list-tasks')
+    axios.get(`${API_BASE_URL}/list-tasks`)
       .then(response => {
         setTasks(response.data.tasks);
       })
@@ -20,11 +21,9 @@ function TaskList() {
 
   const handleDeleteTask = (taskName) => {
     if (window.confirm(`Are you sure you want to delete the task: ${taskName}?`)) {
-      // Send request to delete the task
-      axios.delete(`http://149.36.1.88:8080/delete-task/${taskName}`)
+      axios.delete(`${API_BASE_URL}/delete-task/${taskName}`)
         .then(response => {
           alert('Task deleted successfully!');
-          // Remove the task from the UI
           setTasks(tasks.filter(task => task.name !== taskName));
         })
         .catch(error => {
@@ -39,8 +38,7 @@ function TaskList() {
       return;
     }
 
-    // Send request to get the Jupyter notebook link with the custom port and service name
-    axios.post('http://149.36.1.88:8080/access-jupyter', { port: customPortValue, serviceName })
+    axios.post(`${API_BASE_URL}/access-jupyter`, { port: customPortValue, serviceName })
       .then(response => {
         const { url, token } = response.data;
         setLink((prevLinks) => ({
@@ -85,7 +83,7 @@ function TaskList() {
               {tasks.map((task) => (
                 <TableRow key={task.name}>
                   <TableCell>{task.name}</TableCell>
-                  <TableCell>{task.name}-service</TableCell> {/* Assuming service name is taskName + "-service" */}
+                  <TableCell>{task.name}-service</TableCell>
                   <TableCell>{task.imageName}</TableCell>
                   <TableCell>{task.cpus}</TableCell>
                   <TableCell>{task.gpus || 'None'}</TableCell>
@@ -101,7 +99,7 @@ function TaskList() {
                     <Button
                       variant="contained"
                       color="primary"
-                      onClick={() => handleGetLink(`${task.name}-service`, customPort[task.name])} // Use service name dynamically
+                      onClick={() => handleGetLink(`${task.name}-service`, customPort[task.name])}
                       sx={{ mr: 2 }}
                     >
                       Get Link
@@ -131,4 +129,3 @@ function TaskList() {
 }
 
 export default TaskList;
-
