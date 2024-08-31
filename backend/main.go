@@ -89,7 +89,7 @@ func main() {
                         VolumeMounts: []v1.VolumeMount{
                             {
                                 Name:      "notebook-storage",
-                                MountPath: "/home/jovyan/work", // Mount the notebook directory
+                                MountPath: "/workspace", // Mount the notebook directory
                             },
                         },
                     },

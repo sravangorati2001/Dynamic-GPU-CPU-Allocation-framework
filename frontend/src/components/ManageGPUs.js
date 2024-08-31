@@ -16,7 +16,7 @@ function ManageResources() {
 
   useEffect(() => {
     // Fetch the number of available and free GPUs and CPUs from the backend
-    axios.get('http://149.36.1.105:8080/available-resources')
+    axios.get('http://149.36.1.88:8080/available-resources')
       .then(response => {
         setAvailableGPUs(response.data.totalAllocatableGPUs);
         setFreeGPUs(response.data.freeGPUs);
@@ -28,7 +28,7 @@ function ManageResources() {
       });
 
     // Fetch the list of tasks (Kubernetes pods)
-    axios.get('http://149.36.1.105:8080/tasks')
+    axios.get('http://149.36.1.88:8080/tasks')
       .then(response => {
         setTaskList(response.data.tasks);  // Set the task names
       })
@@ -57,7 +57,7 @@ function ManageResources() {
       gpus: gpusToAdd,
       cpus: cpusToAdd,
     };
-    axios.post('http://149.36.1.105:8080/add-resources', data)
+    axios.post('http://149.36.1.88:8080/add-resources', data)
       .then(response => {
         alert('Resources successfully added to the task!');
       })
