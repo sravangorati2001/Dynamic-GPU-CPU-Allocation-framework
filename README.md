@@ -96,24 +96,23 @@ To run the KubeAI application:
 
 ## Components
 
-1. Kubernetes: Orchestrates containerized applications, manages deployment, scaling, and operations of application containers across clusters of hosts.
+**1. Kubernetes:** Orchestrates containerized applications, manages deployment, scaling, and operations of application containers across clusters of hosts.
 
-2. Docker: Provides containerization technology, allowing applications to be packaged with their dependencies and run in isolated environments.
+**2. Docker:** Provides containerization technology, allowing applications to be packaged with their dependencies and run in isolated environments.
 
-3. AWS: Cloud platform used for hosting and scaling the KubeAI infrastructure.
+**3. AWS:** Cloud platform used for hosting and scaling the KubeAI infrastructure.
 
-4. Grafana: Provides visualization and analytics for the metrics collected by Prometheus, offering customizable dashboards for monitoring GPU/CPU usage.
+**4. Grafana:** Provides visualization and analytics for the metrics collected by Prometheus, offering customizable dashboards for monitoring GPU/CPU usage.
 
-5. Golang: The primary programming language used for developing the backend services of KubeAI.
+**5. Golang:** The primary programming language used for developing the backend services of KubeAI.
 
-6. NVIDIA DCGM (Data Center GPU Manager): Provides GPU telemetry and management capabilities, crucial for monitoring GPU health and performance.
+**6. NVIDIA DCGM (Data Center GPU Manager):** Provides GPU telemetry and management capabilities, crucial for monitoring GPU health and performance.
 
-7. Prometheus: Collects and stores time-series data, used for monitoring system metrics and generating alerts.
+**7. Prometheus:** Collects and stores time-series data, used for monitoring system metrics and generating alerts.
 
-8. GIN Framework: A web framework written in Go, used for building the backend API of KubeAI.
+**8. GIN Framework:** A web framework written in Go, used for building the backend API of KubeAI.
 
-9. Material UI: A popular React UI framework used for designing the frontend interface of KubeAI.
-
+**9. Material UI:** A popular React UI framework used for designing the frontend interface of KubeAI.
 These components work together to create a robust system for GPU/CPU orchestration, enabling efficient resource allocation and detailed monitoring in AI and machine learning environments.
 
 # Application
