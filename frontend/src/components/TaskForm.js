@@ -1,5 +1,9 @@
 import React, { useState } from 'react';
-import { TextField, Button, Grid, Box, Typography, Autocomplete } from '@mui/material';
+import { TextField, Button, Grid, Box, Typography, Autocomplete, Paper, InputAdornment } from '@mui/material';
+import TaskIcon from '@mui/icons-material/Task';
+import ComputerIcon from '@mui/icons-material/Computer';
+import MemoryIcon from '@mui/icons-material/Memory';
+import ImageIcon from '@mui/icons-material/Image';
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080';
 
@@ -66,82 +70,115 @@ function TaskForm() {
   };
 
   return (
-    <Box sx={{ mt: 4, maxWidth: 800, mx: 'auto' }}>
-      <Typography variant="h4" gutterBottom textAlign="center">
-        Create Task
-      </Typography>
-      <form onSubmit={handleSubmit}>
-        <Grid container spacing={2} justifyContent="center">
-          <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              label="Task Name"
-              variant="outlined"
-              name="taskName"
-              value={formData.taskName}
-              onChange={handleChange}
-              required
-            />
-          </Grid>
-          <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              label="Number of CPUs"
-              variant="outlined"
-              name="cpus"
-              value={formData.cpus}
-              onChange={handleChange}
-              type="number"
-              required
-            />
-          </Grid>
-          <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              label="Number of GPUs"
-              variant="outlined"
-              name="gpus"
-              value={formData.gpus}
-              onChange={handleChange}
-              type="number"
-              required
-            />
-          </Grid>
-          <Grid item xs={12} sm={6}>
-            <Autocomplete
-              options={imageList}
-              value={formData.selectedImage}
-              onChange={handleImageSelect}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label="Select Kubernetes Image"
-                  variant="outlined"
-                  fullWidth
-                  required
-                />
-              )}
-            />
-          </Grid>
-          {formData.selectedImage && (
+    <Box sx={{ mt: 4, maxWidth: 600, mx: 'auto' }}>
+      <Paper elevation={3} sx={{ p: 4, borderRadius: 2 }}>
+        <Typography variant="h4" gutterBottom textAlign="center" sx={{ mb: 3, fontWeight: 'bold', color: '#1976d2' }}>
+          Create Task
+        </Typography>
+        <form onSubmit={handleSubmit}>
+          <Grid container spacing={3}>
             <Grid item xs={12}>
-              <Typography variant="body1" textAlign="center">
-                Selected Image: {formData.selectedImage}
-              </Typography>
+              <TextField
+                fullWidth
+                label="Task Name"
+                variant="outlined"
+                name="taskName"
+                value={formData.taskName}
+                onChange={handleChange}
+                required
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <TaskIcon color="primary" />
+                    </InputAdornment>
+                  ),
+                }}
+              />
             </Grid>
-          )}
-          <Grid item xs={12}>
-            <Button
-              variant="contained"
-              color="primary"
-              fullWidth
-              type="submit"
-            >
-              Create Task
-            </Button>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Number of CPUs"
+                variant="outlined"
+                name="cpus"
+                value={formData.cpus}
+                onChange={handleChange}
+                type="number"
+                required
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <ComputerIcon color="primary" />
+                    </InputAdornment>
+                  ),
+                }}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Number of GPUs"
+                variant="outlined"
+                name="gpus"
+                value={formData.gpus}
+                onChange={handleChange}
+                type="number"
+                required
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <MemoryIcon color="primary" />
+                    </InputAdornment>
+                  ),
+                }}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <Autocomplete
+                options={imageList}
+                value={formData.selectedImage}
+                onChange={handleImageSelect}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Select Kubernetes Image"
+                    variant="outlined"
+                    fullWidth
+                    required
+                    InputProps={{
+                      ...params.InputProps,
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <ImageIcon color="primary" />
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                )}
+              />
+            </Grid>
+            {formData.selectedImage && (
+              <Grid item xs={12}>
+                <Typography variant="body2" textAlign="center" color="text.secondary">
+                  Selected Image: {formData.selectedImage}
+                </Typography>
+              </Grid>
+            )}
+            <Grid item xs={12}>
+              <Button
+                variant="contained"
+                color="primary"
+                fullWidth
+                type="submit"
+                size="large"
+                sx={{ mt: 2, py: 1.5, fontWeight: 'bold' }}
+              >
+                Create Task
+              </Button>
+            </Grid>
           </Grid>
-        </Grid>
-      </form>
+        </form>
+      </Paper>
     </Box>
   );
 }

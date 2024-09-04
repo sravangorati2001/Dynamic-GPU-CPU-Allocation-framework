@@ -11,12 +11,14 @@ import (
     "strings"
     "time"
     "strconv"
-
+    corev1 "k8s.io/api/core/v1"
     "github.com/gin-contrib/cors"
     "github.com/gin-gonic/gin"
     "k8s.io/client-go/kubernetes"
     "k8s.io/client-go/tools/clientcmd"
     metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+    "k8s.io/apimachinery/pkg/api/errors"
+    "k8s.io/apimachinery/pkg/util/wait"
     "k8s.io/apimachinery/pkg/api/resource"
     v1 "k8s.io/api/core/v1"
     "k8s.io/apimachinery/pkg/util/intstr"
@@ -27,6 +29,12 @@ type TaskRequest struct {
     CPUs      string `json:"cpus" binding:"required"`
     GPUs      string `json:"gpus" binding:"required"`
     ImageName string `json:"imageName" binding:"required"`
+}
+
+type AddResourcesRequest struct {
+    TaskName string `json:"taskName" binding:"required"`
+    GPUs     string `json:"gpus" binding:"required"`
+    CPUs     string `json:"cpus" binding:"required"`
 }
 
 func main() {
@@ -222,49 +230,58 @@ func main() {
 			"totalUsedCPUs":       totalUsedCPUs,
 		})
 	})
-    
-
-    type AddGPURequest struct {
-        TaskName string `json:"taskName" binding:"required"`
-        GPUs     string `json:"gpus" binding:"required"`
+     
+    router.POST("/add-resources", func(c *gin.Context) {
+    var gpuReq AddResourcesRequest
+    if err := c.ShouldBindJSON(&gpuReq); err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+        return
     }
-    
-    // API to add GPUs to an existing task
-    router.POST("/add-gpus", func(c *gin.Context) {
-        var gpuReq AddGPURequest
-        if err := c.ShouldBindJSON(&gpuReq); err != nil {
-            c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-            return
-        }
-    
-        // Fetch the pod by task name
-        pod, err := clientset.CoreV1().Pods("default").Get(context.TODO(), gpuReq.TaskName, metav1.GetOptions{})
-        if err != nil {
-            c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get pod", "details": err.Error()})
-            return
-        }
-    
-        // Update the GPU resource limits for the pod's container
-        pod.Spec.Containers[0].Resources.Limits["nvidia.com/gpu"] = resource.MustParse(gpuReq.GPUs)
-        pod.Spec.Containers[0].Resources.Requests["nvidia.com/gpu"] = resource.MustParse(gpuReq.GPUs)
-    
-        // Delete the current pod and recreate it with updated GPUs (this can be avoided with advanced Kubernetes techniques)
-        err = clientset.CoreV1().Pods("default").Delete(context.TODO(), gpuReq.TaskName, metav1.DeleteOptions{})
-        if err != nil {
-            c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete pod", "details": err.Error()})
-            return
-        }
-    
-        // Recreate the pod with the new resource requests
-        createdPod, err := clientset.CoreV1().Pods("default").Create(context.TODO(), pod, metav1.CreateOptions{})
-        if err != nil {
-            c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create updated pod", "details": err.Error()})
-            return
-        }
-    
-        c.JSON(http.StatusOK, gin.H{"message": "GPUs successfully added to the task", "podName": createdPod.Name})
-    })
-    
+
+    // Fetch the pod by task name
+    pod, err := clientset.CoreV1().Pods("default").Get(context.TODO(), gpuReq.TaskName, metav1.GetOptions{})
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get pod", "details": err.Error()})
+        return
+    }
+
+    // Update the GPU resource limits for the pod's container
+    pod.Spec.Containers[0].Resources.Limits["nvidia.com/gpu"] = resource.MustParse(gpuReq.GPUs)
+    pod.Spec.Containers[0].Resources.Requests["nvidia.com/gpu"] = resource.MustParse(gpuReq.GPUs)
+
+    // Delete the current pod
+    err = clientset.CoreV1().Pods("default").Delete(context.TODO(), gpuReq.TaskName, metav1.DeleteOptions{})
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete pod", "details": err.Error()})
+        return
+    }
+
+    // Wait for the pod to be deleted
+    err = waitForPodDeletion(clientset, "default", gpuReq.TaskName)
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed waiting for pod deletion", "details": err.Error()})
+        return
+    }
+
+    // Recreate the pod with the new resource requests
+    newPod := &corev1.Pod{
+        ObjectMeta: metav1.ObjectMeta{
+            Name:      gpuReq.TaskName,
+            Namespace: "default",
+            Labels:    pod.Labels,
+        },
+        Spec: pod.Spec,
+    }
+
+    createdPod, err := clientset.CoreV1().Pods("default").Create(context.TODO(), newPod, metav1.CreateOptions{})
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create updated pod", "details": err.Error()})
+        return
+    }
+
+    c.JSON(http.StatusOK, gin.H{"message": "GPUs successfully added to the task", "podName": createdPod.Name})
+})
+
     router.DELETE("/delete-task/:taskName", func(c *gin.Context) {
         taskName := c.Param("taskName")
     
@@ -381,7 +398,7 @@ func main() {
         }
 
         // Construct the public URL and return it along with the token if available
-        publicIP := "149.36.1.105" // Replace with your public IP or domain
+        publicIP := "149.36.1.88" // Replace with your public IP or domain
         serviceURL := fmt.Sprintf("http://%s:%d", publicIP, port)
 
         response := gin.H{"url": serviceURL}
@@ -446,3 +463,40 @@ func extractJupyterToken(logs string) string {
     return ""
 }
 
+func waitForPodDeletion(clientset *kubernetes.Clientset, namespace, name string) error {
+    return wait.PollImmediate(time.Second, time.Minute, func() (bool, error) {
+        _, err := clientset.CoreV1().Pods(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+        if err != nil {
+            if errors.IsNotFound(err) {
+                return true, nil
+            }
+            return false, err
+        }
+        return false, nil
+    })
+}
+
+
+
+func findDeploymentForPod(clientset *kubernetes.Clientset, podName string) (string, error) {
+    pod, err := clientset.CoreV1().Pods("default").Get(context.TODO(), podName, metav1.GetOptions{})
+    if err != nil {
+        return "", fmt.Errorf("failed to get pod: %v", err)
+    }
+
+    for _, ownerRef := range pod.OwnerReferences {
+        if ownerRef.Kind == "ReplicaSet" {
+            rs, err := clientset.AppsV1().ReplicaSets("default").Get(context.TODO(), ownerRef.Name, metav1.GetOptions{})
+            if err != nil {
+                return "", fmt.Errorf("failed to get ReplicaSet: %v", err)
+            }
+            for _, rsOwnerRef := range rs.OwnerReferences {
+                if rsOwnerRef.Kind == "Deployment" {
+                    return rsOwnerRef.Name, nil
+                }
+            }
+        }
+    }
+
+    return "", fmt.Errorf("no deployment found for pod %s", podName)
+}
