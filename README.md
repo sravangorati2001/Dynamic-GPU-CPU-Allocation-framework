@@ -120,7 +120,8 @@ These components work together to create a robust system for GPU/CPU orchestrati
 <img width="1920" alt="Screenshot 2024-09-03 at 5 08 17 PM" src="https://github.com/user-attachments/assets/0ba7a826-bb10-476f-9dda-cf398b3ef0a6">
 <img width="1920" alt="Screenshot 2024-09-03 at 5 08 56 PM" src="https://github.com/user-attachments/assets/903cbe21-2275-4a9f-9594-e15660573b4a">
 <img width="1920" alt="Screenshot 2024-09-03 at 5 08 34 PM" src="https://github.com/user-attachments/assets/6f995a90-0834-4ad3-b6ec-7b5bd5aedcb4">
-![image](https://github.com/user-attachments/assets/8f231529-78ea-4617-b0c0-3e6e4e69c361)
+<img width="1920" alt="Screenshot 2024-09-03 at 5 08 34 PM" src="https://github.com/user-attachments/assets/8f231529-78ea-4617-b0c0-3e6e4e69c361">
+
 
 
 
