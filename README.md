@@ -19,6 +19,9 @@ Key features include:
 
 KubeAI allows for close monitoring of GPU memory and temperature, enabling appropriate actions to be taken based on these metrics.
 
+## Architecture Diagram
+![image](https://github.com/user-attachments/assets/02f4c8a4-d876-47c8-8d90-de19bfe8e3e5)
+
 ## Installation
 
 To set up the KubeAI environment, follow these installation steps for the required components:
