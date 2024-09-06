@@ -8,6 +8,10 @@ The primary challenge addressed by KubeAI is the reduction of idle time for GPUs
 
 KubeAI is an advanced GPU/CPU orchestration framework designed for efficient resource management in AI and machine learning environments. This project leverages Kubernetes, Docker, AWS, Grafana, Golang, NVIDIA DCGM, Prometheus, GIN Framework, and Material UI to provide a comprehensive solution for dynamic resource allocation and monitoring.
 
+## Demo Video:
+
+https://github.com/user-attachments/assets/eac90a42-70c4-4598-bc7d-88eccaf4e1fe
+
 Key features include:
 - Dynamic GPU/CPU allocation to services
 - Persistent volume storage across applications
