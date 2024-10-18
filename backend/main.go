@@ -41,7 +41,7 @@ func main() {
     router := gin.Default()
     router.Use(cors.Default())
     // Build the Kubernetes config from the Minikube kubeconfig file
-    config, err := clientcmd.BuildConfigFromFlags("", "/home/ubuntu/.kube/config")
+    config, err := clientcmd.BuildConfigFromFlags("", "/Users/sravankumargorati/.kube/config")
     if err != nil {
         log.Fatalf("Failed to load Kubernetes config: %v", err)
     }
@@ -409,49 +409,77 @@ func main() {
         c.JSON(http.StatusOK, response)
     })
 
-    router.GET("/list-tasks", func(c *gin.Context) {
-        pods, err := clientset.CoreV1().Pods("default").List(context.TODO(), metav1.ListOptions{})
-        if err != nil {
-            c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to list pods", "details": err.Error()})
-            return
+   router.GET("/list-tasks", func(c *gin.Context) {
+    device := c.Query("device") // Get the device query parameter
+
+    var namespace string
+
+    // Set the namespace based on the device parameter
+    switch device {
+    case "On-premises":
+        namespace = "on-premises"
+    case "edge-device":
+        namespace = "edge-device"
+    case "both":
+        // You may need a different logic here if you want to fetch from both namespaces
+        // For simplicity, we'll set to "default" for now or you can manually handle both cases.
+        namespace = "default"
+    default:
+        namespace = "default" // fallback to default if no device specified
+    }
+
+    pods, err := clientset.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{})
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to list pods", "details": err.Error()})
+        return
+    }
+
+    tasks := []map[string]interface{}{}
+
+    for _, pod := range pods.Items {
+        var gpus string
+        var cpus string
+
+        // Extract the requested resources
+        if len(pod.Spec.Containers) > 0 {
+            cpus = pod.Spec.Containers[0].Resources.Requests.Cpu().String()
+            if gpu, ok := pod.Spec.Containers[0].Resources.Requests["nvidia.com/gpu"]; ok {
+                gpus = gpu.String()
+            }
         }
 
-        tasks := []map[string]interface{}{}
-
-        for _, pod := range pods.Items {
-            var gpus string
-            var cpus string
-
-            // Extract the requested resources
-            if len(pod.Spec.Containers) > 0 {
-                cpus = pod.Spec.Containers[0].Resources.Requests.Cpu().String()
-                if gpu, ok := pod.Spec.Containers[0].Resources.Requests["nvidia.com/gpu"]; ok {
-                    gpus = gpu.String()
-                }
-            }
-
-            // Find associated service to get the port
-            serviceName := pod.Name + "-service"
-            service, err := clientset.CoreV1().Services("default").Get(context.TODO(), serviceName, metav1.GetOptions{})
-            var nodePort int32
-            if err == nil && len(service.Spec.Ports) > 0 {
-                nodePort = service.Spec.Ports[0].NodePort
-            }
-
-            task := map[string]interface{}{
-                "name":       pod.Name,
-                "imageName":  pod.Spec.Containers[0].Image,
-                "cpus":       cpus,
-                "gpus":       gpus,
-                "nodePort":   nodePort,
-            }
-            tasks = append(tasks, task)
+        // Find associated service to get the port
+        serviceName := pod.Name + "-service"
+        service, err := clientset.CoreV1().Services(namespace).Get(context.TODO(), serviceName, metav1.GetOptions{})
+        var nodePort int32
+        if err == nil && len(service.Spec.Ports) > 0 {
+            nodePort = service.Spec.Ports[0].NodePort
         }
 
-        c.JSON(http.StatusOK, gin.H{"tasks": tasks})
-    })
+        task := map[string]interface{}{
+            "name":       pod.Name,
+            "imageName":  pod.Spec.Containers[0].Image,
+            "cpus":       cpus,
+            "gpus":       gpus,
+            "nodePort":   nodePort,
+        }
+
+        tasks = append(tasks, task)
+    }
+
+    c.JSON(http.StatusOK, gin.H{"tasks": tasks})
+})
+
 
     router.Run(":8080")
+}
+
+func isOnPremises(pod v1.Pod) bool {
+    return pod.Labels["location"] == "on-premises"
+}
+
+func isEdgeDevice(pod v1.Pod) bool {
+    return pod.Labels["location"] == "edge"
 }
 
 func extractJupyterToken(logs string) string {

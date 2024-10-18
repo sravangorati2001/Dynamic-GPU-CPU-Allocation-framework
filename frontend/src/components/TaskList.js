@@ -3,7 +3,7 @@ import {
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow, 
   Typography, Button, Container, Box, TextField, Snackbar, Alert, 
   Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle,
-  Link, IconButton, Paper, Chip, Tooltip,Stack
+  Link, IconButton, Paper, Chip, Tooltip, Stack, Select, MenuItem, InputLabel, FormControl
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
@@ -20,13 +20,16 @@ function TaskList() {
   const [customPort, setCustomPort] = useState({});
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' });
   const [deleteDialog, setDeleteDialog] = useState({ open: false, taskName: '' });
+  const [selectedDevice, setSelectedDevice] = useState('On-premises'); // New state for selected device
 
   useEffect(() => {
     fetchTasks();
-  }, []);
+  }, [selectedDevice]); // Re-fetch tasks when selectedDevice changes
 
   const fetchTasks = () => {
-    axios.get(`${API_BASE_URL}/list-tasks`)
+    axios.get(`${API_BASE_URL}/list-tasks`, {
+      params: { device: selectedDevice } // Include the selected device in the request
+    })
       .then(response => {
         setTasks(response.data.tasks);
       })
@@ -58,7 +61,11 @@ function TaskList() {
       return;
     }
 
-    axios.post(`${API_BASE_URL}/access-jupyter`, { port: customPortValue, serviceName })
+    axios.post(`${API_BASE_URL}/access-jupyter`, { 
+      port: customPortValue, 
+      serviceName, 
+      device: selectedDevice  // Include the selected device when fetching the link
+    })
       .then(response => {
         const { url, token } = response.data;
         setLinks(prevLinks => ({
@@ -79,6 +86,10 @@ function TaskList() {
       ...prevPorts,
       [taskName]: port,
     }));
+  };
+
+  const handleDeviceChange = (event) => {
+    setSelectedDevice(event.target.value); // Update the selected device
   };
 
   const showSnackbar = (message, severity) => {
@@ -124,6 +135,21 @@ function TaskList() {
         <Typography variant="h4" gutterBottom sx={{ mb: 3, fontWeight: 'bold', color: '#1976d2' }}>
           Created Tasks
         </Typography>
+        <FormControl fullWidth sx={{ mb: 3 }}>
+          <InputLabel id="device-select-label">Device</InputLabel>
+          <Select
+            labelId="device-select-label"
+            id="device-select"
+            value={selectedDevice}
+            label="Device"
+            onChange={handleDeviceChange} // Handle device change
+          >
+            <MenuItem value="On-premises">On-premises</MenuItem>
+            <MenuItem value="edge-device">Edge device</MenuItem>
+            <MenuItem value="Both">Both</MenuItem>
+          </Select>
+        </FormControl>
+
         <TableContainer>
           <Table>
             <TableHead>
@@ -148,25 +174,25 @@ function TaskList() {
                       </Typography>
                     </Tooltip>
                   </TableCell>
-		      <TableCell align="center">
-                  <Tooltip title={`CPUs: ${task.cpus}, GPUs: ${task.gpus || 'None'}`} arrow>
-                    <Stack spacing={1} alignItems="center">
-                      <Chip
-                        icon={<ComputerIcon />}
-                        label={task.cpus}
-                        size="small"
-                        sx={{ width: '80px', justifyContent: 'flex-start' }}
-                      />
-                      <Chip
-                        icon={<MemoryIcon />}
-                        label={task.gpus || '0'}
-                        size="small"
-                        color={task.gpus ? "secondary" : "default"}
-                        sx={{ width: '80px', justifyContent: 'flex-start' }}
-                      />
-                    </Stack>
-                  </Tooltip>
-                </TableCell>
+                  <TableCell align="center">
+                    <Tooltip title={`CPUs: ${task.cpus}, GPUs: ${task.gpus || 'None'}`} arrow>
+                      <Stack spacing={1} alignItems="center">
+                        <Chip
+                          icon={<ComputerIcon />}
+                          label={task.cpus}
+                          size="small"
+                          sx={{ width: '80px', justifyContent: 'flex-start' }}
+                        />
+                        <Chip
+                          icon={<MemoryIcon />}
+                          label={task.gpus || '0'}
+                          size="small"
+                          color={task.gpus ? "secondary" : "default"}
+                          sx={{ width: '80px', justifyContent: 'flex-start' }}
+                        />
+                      </Stack>
+                    </Tooltip>
+                  </TableCell>
                   <TableCell align="center">
                     <Chip label={task.nodePort !== 0 ? task.nodePort : 'Not exposed'} color="primary" variant="outlined" />
                   </TableCell>
