@@ -1,9 +1,14 @@
-import React, { useState } from 'react';
-import { TextField, Button, Grid, Box, Typography, Autocomplete, Paper, InputAdornment } from '@mui/material';
+import React, { useState, useEffect } from 'react';
+import { 
+  TextField, Button, Grid, Box, Typography, Autocomplete, Paper, InputAdornment,
+  FormControl, InputLabel, Select, MenuItem 
+} from '@mui/material';
 import TaskIcon from '@mui/icons-material/Task';
 import ComputerIcon from '@mui/icons-material/Computer';
 import MemoryIcon from '@mui/icons-material/Memory';
 import ImageIcon from '@mui/icons-material/Image';
+import CloudIcon from '@mui/icons-material/Cloud';
+import FolderIcon from '@mui/icons-material/Folder';
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080';
 
@@ -27,8 +32,45 @@ function TaskForm() {
     taskName: '',
     cpus: '',
     gpus: '',
-    selectedImage: ''
+    selectedImage: '',
+    selectedCluster: '',
+    selectedNamespace: ''
   });
+
+  const [clusters, setClusters] = useState([]);
+  const [namespaces, setNamespaces] = useState([]);
+
+  // Fetch clusters when component mounts
+  useEffect(() => {
+    fetchClusters();
+  }, []);
+
+  // Fetch namespaces when cluster is selected
+  useEffect(() => {
+    if (formData.selectedCluster) {
+      fetchNamespaces(formData.selectedCluster);
+    }
+  }, [formData.selectedCluster]);
+
+  const fetchClusters = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/clusters`);
+      const data = await response.json();
+      setClusters(data.clusters || []);
+    } catch (error) {
+      console.error('Error fetching clusters:', error);
+    }
+  };
+
+  const fetchNamespaces = async (clusterName) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/clusters/${clusterName}/namespaces`);
+      const data = await response.json();
+      setNamespaces(data.namespaces || []);
+    } catch (error) {
+      console.error('Error fetching namespaces:', error);
+    }
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -39,34 +81,51 @@ function TaskForm() {
     setFormData({ ...formData, selectedImage: value });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    if (!formData.selectedCluster || !formData.selectedNamespace) {
+      alert('Please select both cluster and namespace');
+      return;
+    }
+
     const payload = {
       taskName: formData.taskName,
       cpus: formData.cpus,
       gpus: formData.gpus,
-      imageName: formData.selectedImage
+      imageName: formData.selectedImage,
+      cluster: formData.selectedCluster,
+      namespace: formData.selectedNamespace
     };
 
-    fetch(`${API_BASE_URL}/create-pod`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-    })
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error('Failed to create task');
-        }
-        return response.json();
-      })
-      .then((data) => {
-        alert(`Task created successfully! Access URL: ${data.serviceURL}`);
-      })
-      .catch((error) => {
-        alert('Failed to create task');
+    try {
+      const response = await fetch(`${API_BASE_URL}/create-pod`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
       });
+
+      if (!response.ok) {
+        throw new Error('Failed to create task');
+      }
+
+      const data = await response.json();
+      alert(`Task created successfully! Access URL: ${data.serviceURL}`);
+      
+      // Reset form
+      setFormData({
+        taskName: '',
+        cpus: '',
+        gpus: '',
+        selectedImage: '',
+        selectedCluster: formData.selectedCluster, // Keep cluster selection
+        selectedNamespace: formData.selectedNamespace // Keep namespace selection
+      });
+    } catch (error) {
+      alert('Failed to create task');
+    }
   };
 
   return (
@@ -77,6 +136,60 @@ function TaskForm() {
         </Typography>
         <form onSubmit={handleSubmit}>
           <Grid container spacing={3}>
+            {/* Cluster Selection */}
+            <Grid item xs={12} sm={6}>
+  <TextField
+    select
+    fullWidth
+    label="Select Cluster"
+    variant="outlined"
+    name="selectedCluster"
+    value={formData.selectedCluster}
+    onChange={handleChange}
+    required
+    InputProps={{
+      startAdornment: (
+        <InputAdornment position="start">
+          <CloudIcon color="primary" />
+        </InputAdornment>
+      ),
+    }}
+  >
+    {clusters.map((cluster) => (
+      <MenuItem key={cluster} value={cluster}>
+        {cluster}
+      </MenuItem>
+    ))}
+  </TextField>
+</Grid>
+
+{/* Namespace Selection */}
+<Grid item xs={12} sm={6}>
+  <TextField
+    select
+    fullWidth
+    label="Select Namespace"
+    variant="outlined"
+    name="selectedNamespace"
+    value={formData.selectedNamespace}
+    onChange={handleChange}
+    required
+    disabled={!formData.selectedCluster}
+    InputProps={{
+      startAdornment: (
+        <InputAdornment position="start">
+          <FolderIcon color="primary" />
+        </InputAdornment>
+      ),
+    }}
+  >
+    {namespaces.map((namespace) => (
+      <MenuItem key={namespace} value={namespace}>
+        {namespace}
+      </MenuItem>
+    ))}
+  </TextField>
+</Grid>
             <Grid item xs={12}>
               <TextField
                 fullWidth
@@ -172,6 +285,7 @@ function TaskForm() {
                 type="submit"
                 size="large"
                 sx={{ mt: 2, py: 1.5, fontWeight: 'bold' }}
+                disabled={!formData.selectedCluster || !formData.selectedNamespace}
               >
                 Create Task
               </Button>
