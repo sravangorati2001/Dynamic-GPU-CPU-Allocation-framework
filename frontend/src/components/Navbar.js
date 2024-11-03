@@ -20,11 +20,11 @@ function Navbar() {
         <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
           KubeAI: GPU/CPU Orchestration Framework
         </Typography>
+	<Button color="inherit" component={Link} to="/task-list">
+          Cluster's Dashboard
+        </Button>
         <Button color="inherit" component={Link} to="/">
           Create Task
-        </Button>
-        <Button color="inherit" component={Link} to="/task-list">
-          Task List
         </Button>
         <Button color="inherit" component={Link} to="/manage-gpus">
           Manage GPUs
