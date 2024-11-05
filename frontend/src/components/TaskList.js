@@ -1,234 +1,204 @@
+// components/TaskList.js
 import React, { useState, useEffect } from 'react';
-import { 
-  Table, TableBody, TableCell, TableContainer, TableHead, TableRow, 
-  Typography, Button, Container, Box, TextField, Snackbar, Alert, 
-  Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle,
-  Link, IconButton, Paper, Chip, Tooltip, Stack, Select, MenuItem, InputLabel, FormControl
+import { useNavigate } from 'react-router-dom';
+import {
+  Box,
+  Grid,
+  Card,
+  CardHeader,
+  CardContent,
+  CardActions,
+  Typography,
+  Button,
+  Container,
+  Alert,
+  Chip,
+  IconButton,
+  CircularProgress,
 } from '@mui/material';
-import DeleteIcon from '@mui/icons-material/Delete';
-import ContentCopyIcon from '@mui/icons-material/ContentCopy';
-import LinkIcon from '@mui/icons-material/Link';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import ErrorIcon from '@mui/icons-material/Error';
-import PendingIcon from '@mui/icons-material/Pending';
-import axios from 'axios';
+import {
+  CheckCircle as CheckCircleIcon,
+  Error as ErrorIcon,
+  Warning as WarningIcon,
+  OpenInNew as OpenInNewIcon,
+  Memory as MemoryIcon,
+  Public as PublicIcon,
+  AccessTime as AccessTimeIcon,
+} from '@mui/icons-material';
 
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080';
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://54.193.133.241:8080';
 
-function TaskList() {
+const TaskList = () => {
   const [clusters, setClusters] = useState([]);
-  const [selectedCluster, setSelectedCluster] = useState('');
-  const [namespaces, setNamespaces] = useState([]);
-  const [selectedNamespace, setSelectedNamespace] = useState('');
-  const [services, setServices] = useState([]);
-  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' });
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchClusters();
   }, []);
 
-  useEffect(() => {
-    if (selectedCluster) {
-      fetchNamespaces(selectedCluster);
-      setSelectedNamespace(''); // Reset namespace selection when cluster changes
-      setServices([]); // Clear services when cluster changes
-    }
-  }, [selectedCluster]);
-
-  useEffect(() => {
-    if (selectedCluster && selectedNamespace) {
-      fetchServices(selectedCluster, selectedNamespace);
-    }
-  }, [selectedCluster, selectedNamespace]);
-
-  const showSnackbar = (message, severity) => {
-    setSnackbar({ open: true, message, severity });
-  };
-
-  const handleCloseSnackbar = (event, reason) => {
-    if (reason === 'clickaway') return;
-    setSnackbar({ ...snackbar, open: false });
-  };
-
   const fetchClusters = async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/clusters`);
-      setClusters(response.data.clusters);
-    } catch (error) {
-      console.error('Error fetching clusters:', error);
-      showSnackbar('Error fetching clusters', 'error');
+      setLoading(true);
+      const response = await fetch(`${API_BASE_URL}/clusters/details`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      setClusters(data.clusters || []);
+    } catch (err) {
+      setError('Failed to fetch clusters: ' + err.message);
+      console.error('Error fetching clusters:', err);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const fetchNamespaces = async (clusterName) => {
-    try {
-      const response = await axios.get(`${API_BASE_URL}/clusters/${clusterName}/namespaces`);
-      setNamespaces(response.data.namespaces || []);
-    } catch (error) {
-      console.error('Error fetching namespaces:', error);
-      showSnackbar('Error fetching namespaces', 'error');
-    }
+  const handleButtonClick = (clusterName) => (e) => {
+    e.stopPropagation(); // Prevent card click
+    window.open(`/clusters/${clusterName}`, '_blank', 'noopener,noreferrer');
   };
 
-  const fetchServices = async (clusterName, namespace) => {
-    try {
-      const response = await axios.get(`${API_BASE_URL}/clusters/${clusterName}/namespaces/${namespace}/services`);
-      setServices(response.data.services || []);
-    } catch (error) {
-      console.error('Error fetching services:', error);
-      showSnackbar('Error fetching services', 'error');
-    }
-  };
-
-  const handleClusterChange = (event) => {
-    setSelectedCluster(event.target.value);
-  };
-
-  const handleNamespaceChange = (event) => {
-    setSelectedNamespace(event.target.value);
-  };
-
-  const getServiceHealthIcon = (status) => {
-    switch (status) {
-      case 'Healthy':
+  const getStatusIcon = (status) => {
+    switch (status.toLowerCase()) {
+      case 'healthy':
         return <CheckCircleIcon sx={{ color: 'success.main' }} />;
-      case 'Unhealthy':
+      case 'unhealthy':
         return <ErrorIcon sx={{ color: 'error.main' }} />;
       default:
-        return <PendingIcon sx={{ color: 'warning.main' }} />;
+        return <WarningIcon sx={{ color: 'warning.main' }} />;
     }
   };
 
+  const getStatusColor = (status) => {
+    switch (status.toLowerCase()) {
+      case 'healthy':
+        return 'success';
+      case 'unhealthy':
+        return 'error';
+      default:
+        return 'warning';
+    }
+  };
+
+  if (loading) {
+    return (
+      <Container sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
+        <CircularProgress />
+      </Container>
+    );
+  }
+
   return (
-    <Container>
-      <Paper elevation={3} sx={{ p: 3, mt: 4 }}>
-        <Typography variant="h4" gutterBottom sx={{ mb: 3, fontWeight: 'bold', color: '#1976d2' }}>
-          Cluster Services
+    <Container maxWidth="xl" sx={{ py: 4 }}>
+      <Box sx={{ mb: 4 }}>
+        <Typography variant="h4" component="h1" gutterBottom>
+          Kubernetes Clusters
         </Typography>
+        <Typography variant="subtitle1" color="text.secondary">
+          Manage and monitor your Kubernetes clusters
+        </Typography>
+      </Box>
 
-        {/* Cluster Selection */}
-        <FormControl fullWidth sx={{ mb: 2 }}>
-          <InputLabel id="cluster-select-label">Select Cluster</InputLabel>
-          <Select
-            labelId="cluster-select-label"
-            id="cluster-select"
-            value={selectedCluster}
-            label="Select Cluster"
-            onChange={handleClusterChange}
-          >
-            {clusters.map((cluster) => (
-              <MenuItem key={cluster} value={cluster}>
-                {cluster}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-
-        {/* Namespace Selection */}
-        {selectedCluster && (
-          <FormControl fullWidth sx={{ mb: 3 }}>
-            <InputLabel id="namespace-select-label">Select Namespace</InputLabel>
-            <Select
-              labelId="namespace-select-label"
-              id="namespace-select"
-              value={selectedNamespace}
-              label="Select Namespace"
-              onChange={handleNamespaceChange}
-            >
-              {namespaces.map((namespace) => (
-                <MenuItem key={namespace} value={namespace}>
-                  {namespace}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        )}
-
-        {/* Services Table */}
-        {selectedCluster && selectedNamespace && (
-          <Box sx={{ mt: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              Services in {selectedNamespace}
-            </Typography>
-            <TableContainer>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell><Typography variant="subtitle1" fontWeight="bold">Service Name</Typography></TableCell>
-                    <TableCell><Typography variant="subtitle1" fontWeight="bold">Type</Typography></TableCell>
-                    <TableCell><Typography variant="subtitle1" fontWeight="bold">Cluster IP</Typography></TableCell>
-                    <TableCell><Typography variant="subtitle1" fontWeight="bold">External IP</Typography></TableCell>
-                    <TableCell><Typography variant="subtitle1" fontWeight="bold">Ports</Typography></TableCell>
-                    <TableCell><Typography variant="subtitle1" fontWeight="bold">Health</Typography></TableCell>
-                    <TableCell><Typography variant="subtitle1" fontWeight="bold">Age</Typography></TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {services.map((service) => (
-                    <TableRow key={service.name}>
-                      <TableCell>{service.name}</TableCell>
-                      <TableCell>
-                        <Chip 
-                          label={service.type} 
-                          color="primary" 
-                          variant="outlined" 
-                          size="small"
-                        />
-                      </TableCell>
-                      <TableCell>{service.clusterIP}</TableCell>
-                      <TableCell>
-                        {service.externalIP || 
-                          <Typography variant="body2" color="text.secondary">
-                            None
-                          </Typography>
-                        }
-                      </TableCell>
-                      <TableCell>
-                        {service.ports.map((port, index) => (
-                          <Chip
-                            key={index}
-                            label={`${port.port}${port.targetPort ? ':' + port.targetPort : ''} ${port.protocol}`}
-                            size="small"
-                            sx={{ m: 0.5 }}
-                          />
-                        ))}
-                      </TableCell>
-                      <TableCell>
-                        <Tooltip title={service.health.message || service.health.status}>
-                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                            {getServiceHealthIcon(service.health.status)}
-                            <Typography variant="body2" sx={{ ml: 1 }}>
-                              {service.health.status}
-                            </Typography>
-                          </Box>
-                        </Tooltip>
-                      </TableCell>
-                      <TableCell>{service.age}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          </Box>
-        )}
-      </Paper>
-
-      {/* Snackbar for notifications */}
-      <Snackbar 
-        open={snackbar.open} 
-        autoHideDuration={6000} 
-        onClose={handleCloseSnackbar}
-      >
-        <Alert 
-          onClose={handleCloseSnackbar} 
-          severity={snackbar.severity} 
-          sx={{ width: '100%' }}
-        >
-          {snackbar.message}
+      {error && (
+        <Alert severity="error" sx={{ mb: 3 }}>
+          {error}
         </Alert>
-      </Snackbar>
+      )}
+
+      {clusters.length === 0 && !error ? (
+        <Alert severity="info" sx={{ mb: 3 }}>
+          No clusters found
+        </Alert>
+      ) : (
+        <Grid container spacing={3}>
+          {clusters.map((cluster) => (
+            <Grid item xs={12} sm={6} md={4} key={cluster.name}>
+              <Card
+                sx={{
+                  height: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  '&:hover': {
+                    boxShadow: 6,
+                    cursor: 'pointer',
+                    transform: 'translateY(-2px)',
+                    transition: 'all 0.2s'
+                  }
+                }}
+                onClick={() => navigate(`/clusters/${cluster.name}`)}
+              >
+                <CardHeader
+                  title={cluster.name}
+                  subheader={
+                    <Chip
+                      icon={getStatusIcon(cluster.status)}
+                      label={cluster.status}
+                      color={getStatusColor(cluster.status)}
+                      size="small"
+                      sx={{ mt: 1 }}
+                    />
+                  }
+                  action={
+                    <IconButton size="small">
+                      <MemoryIcon />
+                    </IconButton>
+                  }
+                />
+
+                <CardContent sx={{ flexGrow: 1 }}>
+                  <Grid container spacing={2} sx={{ mb: 2 }}>
+                    <Grid item xs={6}>
+                      <Typography variant="body2" color="text.secondary">
+                        Version
+                      </Typography>
+                      <Typography variant="body1">
+                        {cluster.version}
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={6}>
+                      <Typography variant="body2" color="text.secondary">
+                        Nodes
+                      </Typography>
+                      <Typography variant="body1">
+                        {cluster.nodeCount}
+                      </Typography>
+                    </Grid>
+                  </Grid>
+
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                    <PublicIcon sx={{ mr: 1, fontSize: 'small', color: 'text.secondary' }} />
+                    <Typography variant="body2" color="text.secondary">
+                      {cluster.region}
+                    </Typography>
+                  </Box>
+
+                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <AccessTimeIcon sx={{ mr: 1, fontSize: 'small', color: 'text.secondary' }} />
+                    <Typography variant="body2" color="text.secondary">
+                      Age: {cluster.age}
+                    </Typography>
+                  </Box>
+                </CardContent>
+
+                <CardActions sx={{ justifyContent: 'flex-end', borderTop: 1, borderColor: 'divider' }}>
+                  <Button
+                    endIcon={<OpenInNewIcon />}
+                    size="small"
+                    color="primary"
+                    onClick={handleButtonClick(cluster.name)}
+                  >
+                    View Details
+                  </Button>
+                </CardActions>
+              </Card>
+            </Grid>
+          ))}
+        </Grid>
+      )}
     </Container>
   );
-}
+};
 
 export default TaskList;

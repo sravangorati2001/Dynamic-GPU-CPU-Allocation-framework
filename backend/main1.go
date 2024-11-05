@@ -463,6 +463,227 @@ r.POST("/create-pod", func(c *gin.Context) {
     })
 })
 
+
+// Add these new endpoints in your main() function, before r.Run()
+
+// Get detailed information about all clusters
+r.GET("/clusters/details", func(c *gin.Context) {
+    clusters, err := server.karmadaClient.ClusterV1alpha1().Clusters().List(context.TODO(), metav1.ListOptions{})
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+        return
+    }
+
+    var clusterDetails []map[string]interface{}
+    for _, cluster := range clusters.Items {
+        // Determine cluster status
+        status := "Unknown"
+        for _, condition := range cluster.Status.Conditions {
+            if condition.Type == "Ready" {
+                if condition.Status == "True" {
+                    status = "Healthy"
+                } else {
+                    status = "Unhealthy"
+                }
+                break
+            }
+        }
+
+        // Get node count
+        clientset, err := server.getClusterClient(cluster.Name)
+        nodeCount := 0
+        if err == nil {
+            if nodes, err := clientset.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{}); err == nil {
+                nodeCount = len(nodes.Items)
+            }
+        }
+
+        // Calculate age
+        age := time.Since(cluster.CreationTimestamp.Time).Round(time.Second)
+
+        clusterDetails = append(clusterDetails, map[string]interface{}{
+            "name":      cluster.Name,
+            "status":    status,
+            "version":   cluster.Status.KubernetesVersion,
+            "nodeCount": nodeCount,
+            "region":    cluster.Labels["region"],
+            "age":       age.String(),
+        })
+    }
+
+    c.JSON(http.StatusOK, gin.H{"clusters": clusterDetails})
+})
+
+// Get cluster health metrics
+r.GET("/clusters/:cluster/health", func(c *gin.Context) {
+    clusterName := c.Param("cluster")
+    
+    cluster, err := server.karmadaClient.ClusterV1alpha1().Clusters().Get(context.TODO(), clusterName, metav1.GetOptions{})
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+        return
+    }
+
+    clientset, err := server.getClusterClient(clusterName)
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+        return
+    }
+
+    // Get nodes information
+    nodes, err := clientset.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+        return
+    }
+
+    // Calculate resource usage
+    var totalCPU, totalMemory, usedCPU, usedMemory resource.Quantity
+    for _, node := range nodes.Items {
+        totalCPU.Add(*node.Status.Capacity.Cpu())
+        totalMemory.Add(*node.Status.Capacity.Memory())
+        usedCPU.Add(*node.Status.Allocatable.Cpu())
+        usedMemory.Add(*node.Status.Allocatable.Memory())
+    }
+
+    // Get pod count
+    pods, err := clientset.CoreV1().Pods("").List(context.TODO(), metav1.ListOptions{})
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+        return
+    }
+
+    c.JSON(http.StatusOK, gin.H{
+        "name": cluster.Name,
+        "status": map[string]interface{}{
+            "conditions": cluster.Status.Conditions,
+            "resources": map[string]interface{}{
+                "cpu": map[string]string{
+                    "total": totalCPU.String(),
+                    "used":  usedCPU.String(),
+                },
+                "memory": map[string]string{
+                    "total": totalMemory.String(),
+                    "used":  usedMemory.String(),
+                },
+            },
+            "nodeCount": len(nodes.Items),
+            "podCount":  len(pods.Items),
+        },
+    })
+})
+
+// Get cluster nodes
+r.GET("/clusters/:cluster/nodes", func(c *gin.Context) {
+    clusterName := c.Param("cluster")
+    
+    clientset, err := server.getClusterClient(clusterName)
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+        return
+    }
+
+    nodes, err := clientset.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+        return
+    }
+
+    var nodesList []map[string]interface{}
+    for _, node := range nodes.Items {
+        // Determine node status
+        status := "Unknown"
+        for _, condition := range node.Status.Conditions {
+            if condition.Type == "Ready" {
+                if condition.Status == "True" {
+                    status = "Ready"
+                } else {
+                    status = "NotReady"
+                }
+                break
+            }
+        }
+
+        // Calculate age
+        age := time.Since(node.CreationTimestamp.Time).Round(time.Second)
+
+        nodesList = append(nodesList, map[string]interface{}{
+            "name":     node.Name,
+            "status":   status,
+            "version":  node.Status.NodeInfo.KubeletVersion,
+            "os":       node.Status.NodeInfo.OperatingSystem,
+            "ip":       node.Status.Addresses[0].Address,
+            "capacity": map[string]string{
+                "cpu":    node.Status.Capacity.Cpu().String(),
+                "memory": node.Status.Capacity.Memory().String(),
+                "pods":   node.Status.Capacity.Pods().String(),
+            },
+            "age": age.String(),
+        })
+    }
+
+    c.JSON(http.StatusOK, gin.H{"nodes": nodesList})
+})
+
+// Get cluster namespace resources
+r.GET("/clusters/:cluster/namespaces/:namespace/resources", func(c *gin.Context) {
+    clusterName := c.Param("cluster")
+    namespace := c.Param("namespace")
+    
+    clientset, err := server.getClusterClient(clusterName)
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+        return
+    }
+
+    // Get pods in namespace
+    pods, err := clientset.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{})
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+        return
+    }
+
+    // Calculate resource usage
+    var totalCPURequest, totalMemoryRequest resource.Quantity
+    var runningPods, pendingPods, failedPods int
+
+    for _, pod := range pods.Items {
+        // Count pods by status
+        switch pod.Status.Phase {
+        case corev1.PodRunning:
+            runningPods++
+        case corev1.PodPending:
+            pendingPods++
+        case corev1.PodFailed:
+            failedPods++
+        }
+
+        // Sum resource requests
+        for _, container := range pod.Spec.Containers {
+            if cpu := container.Resources.Requests.Cpu(); cpu != nil {
+                totalCPURequest.Add(*cpu)
+            }
+            if memory := container.Resources.Requests.Memory(); memory != nil {
+                totalMemoryRequest.Add(*memory)
+            }
+        }
+    }
+
+    c.JSON(http.StatusOK, gin.H{
+        "namespace": namespace,
+        "resources": map[string]interface{}{
+            "cpu":    totalCPURequest.String(),
+            "memory": totalMemoryRequest.String(),
+        },
+        "pods": map[string]int{
+            "running":  runningPods,
+            "pending": pendingPods,
+            "failed":  failedPods,
+            "total":   len(pods.Items),
+        },
+    })
+})
+
 	// Run the server
 	port := os.Getenv("PORT")
 	if port == "" {
