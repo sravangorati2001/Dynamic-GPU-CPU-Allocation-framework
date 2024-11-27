@@ -41,7 +41,7 @@ func main() {
 	router := gin.Default()
 	router.Use(cors.Default())
 	// Build the Kubernetes config from the Minikube kubeconfig file
-	config, err := clientcmd.BuildConfigFromFlags("", "/home/ubuntu/.kube/config")
+	config, err := clientcmd.BuildConfigFromFlags("", "/users/sravankumargorati/.kube/config")
 	if err != nil {
 		log.Fatalf("Failed to load Kubernetes config: %v", err)
 	}

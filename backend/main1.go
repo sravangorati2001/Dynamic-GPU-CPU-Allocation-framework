@@ -161,7 +161,7 @@ func (s *Server) getClusterClient(clusterName string) (*kubernetes.Clientset, er
 
     return clientset, nil
 }
-func main() {
+func main1() {
 	// Set Gin to release mode in production
 	if os.Getenv("GIN_MODE") == "release" {
 		gin.SetMode(gin.ReleaseMode)
