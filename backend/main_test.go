@@ -143,6 +143,7 @@ func TestIsOnPremises(t *testing.T) {
 	}
 }
 
+
 func TestIsEdgeDevice(t *testing.T) {
 	tests := []struct {
 		name     string
